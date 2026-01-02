@@ -1,139 +1,127 @@
-# MallBook - Shopping Mall Booking System
+# 🏬 MallBook - Shopping Mall Booking System
 
-A modern web application for booking services and stores in shopping malls. Built with React.js frontend and Node.js backend.
+A modern full-stack application for booking services and exploring stores in shopping malls. Built with **React.js** frontend and **Node.js** backend.
 
-## Features
+## ✨ Features
 
-- **User Authentication**: Secure login and registration system
-- **Store Management**: Browse and view store details
-- **Service Booking**: Book services from different stores
-- **Admin Dashboard**: Manage stores, services, and bookings
-- **Responsive Design**: Works on desktop and mobile devices
-- **Dark/Light Theme**: Toggle between themes
-- **Real-time Updates**: Live booking status updates
+- 🔐 **Secure Authentication** - JWT-based login/register
+- 🏪 **Store Directory** - Browse stores by floor and category
+- 📅 **Easy Booking** - Simple booking process with confirmation
+- 📊 **Admin Dashboard** - Real-time statistics and management
+- 🎨 **Modern UI** - Responsive design with animations
 
-## Tech Stack
+## 🛠️ Tech Stack
 
-### Frontend
-- React.js
-- React Router for navigation
-- Tailwind CSS for styling
-- React Icons for icons
-- Context API for state management
+**Frontend:** React.js, Tailwind CSS, Framer Motion, Axios, React Query
 
-### Backend
-- Node.js
-- Express.js
-- MongoDB with Mongoose
-- JWT for authentication
-- bcrypt for password hashing
+**Backend:** Node.js, Express, MongoDB, JWT Authentication, bcryptjs
 
-## Installation
+## 📋 Prerequisites
 
-1. **Clone the repository**
-   ```bash
-   git clone <your-repo-url>
-   cd project
-   ```
+- Node.js (v16+)
+- MongoDB
+- npm or yarn
 
-2. **Install dependencies**
-   ```bash
-   # Install server dependencies
-   npm install
-   
-   # Install client dependencies
-   cd client
-   npm install
-   cd ..
-   ```
+## 🚀 Installation
 
-3. **Set up environment variables**
-   Create a `.env` file in the root directory:
-   ```env
-   MONGODB_URI=your_mongodb_connection_string
-   JWT_SECRET=your_jwt_secret
-   PORT=5000
-   ```
+```bash
+# Clone repository
+git clone https://github.com/yourusername/mallbook.git
+cd mallbook
 
-4. **Run the application**
-   ```bash
-   # Start the server (from root directory)
-   npm start
-   
-   # Start the client (in a new terminal, from client directory)
-   cd client
-   npm start
-   ```
+# Install all dependencies
+npm run install:all
+```
 
-## Project Structure
+## ▶️ Running the Application
+
+**Development:**
+```bash
+npm run dev              # Start both frontend and backend
+npm run server:dev       # Backend only on http://localhost:5000
+npm run client:dev       # Frontend only on http://localhost:3000
+```
+
+**Production:**
+```bash
+npm run client:build     # Build frontend
+npm run server:start     # Start backend
+```
+
+## ⚙️ Environment Variables
+
+Create `.env` file in root directory:
+
+```env
+# Backend
+MONGODB_URI=mongodb://localhost:27017/mallbook
+JWT_SECRET=your_secret_key
+PORT=5000
+NODE_ENV=development
+
+# Frontend
+REACT_APP_API_URL=http://localhost:5000
+REACT_APP_API_BASE=http://localhost:5000/api
+```
+
+## 📊 Database Seeding
+
+```bash
+npm run seed
+```
+
+Creates sample data: Admin user, 20+ stores across 3 floors, and services.
+
+## 📁 Project Structure
 
 ```
-project/
-├── client/                 # React frontend
-│   ├── public/
+mallbook/
+├── backend/
+│   ├── models/           # Database schemas
+│   ├── routes/           # API routes
+│   ├── middleware/       # Authentication & errors
+│   └── server.js         # Main server
+├── frontend/
 │   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── contexts/       # React contexts
-│   │   └── ...
-│   └── package.json
-├── models/                 # MongoDB models
-├── routes/                 # API routes
-├── middleware/             # Custom middleware
-├── server.js              # Express server
+│   │   ├── components/   # React components
+│   │   ├── contexts/     # State management
+│   │   └── utils/        # Utilities
+│   └── public/           # Static assets
 └── package.json
 ```
 
-## API Endpoints
+## 🔗 Main API Endpoints
 
-### Authentication
-- `POST /api/auth/register` - User registration
-- `POST /api/auth/login` - User login
-- `GET /api/auth/me` - Get current user
+**Auth:** POST `/auth/register`, POST `/auth/login`, GET `/auth/user`
 
-### Stores
-- `GET /api/stores` - Get all stores
-- `GET /api/stores/:id` - Get store by ID
-- `POST /api/stores` - Create store (admin only)
-- `PUT /api/stores/:id` - Update store (admin only)
-- `DELETE /api/stores/:id` - Delete store (admin only)
+**Stores:** GET `/stores`, GET `/stores/floors`, GET `/stores/categories`
 
-### Services
-- `GET /api/services` - Get all services
-- `GET /api/services/:id` - Get service by ID
-- `POST /api/services` - Create service (admin only)
-- `PUT /api/services/:id` - Update service (admin only)
-- `DELETE /api/services/:id` - Delete service (admin only)
+**Services:** GET `/services`, GET `/services/:id`
 
-### Bookings
-- `GET /api/bookings` - Get user bookings
-- `POST /api/bookings` - Create booking
-- `PUT /api/bookings/:id` - Update booking
-- `DELETE /api/bookings/:id` - Cancel booking
+**Bookings:** POST `/bookings`, GET `/bookings`, PUT `/bookings/:id/cancel`
 
-## Contributing
+**Admin:** GET `/admin/dashboard`
 
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+## 👥 User Roles
 
-## License
+- **Customer** - Browse and book services
+- **Admin** - Full system access
+- **Store Manager** - Manage services
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## 🌐 Deployment
 
-## Author
+**Frontend:** Vercel (auto-deploy with `vercel.json`)
 
-**Saurabh Chaurasia** - [@srv-23](https://github.com/srv-23)
+**Backend:** Heroku, Railway, or Render
 
-- **4th Year Information Technology Engineering** student at Netaji Subhash University of Technology, New Delhi
-- **LinkedIn**: [saurabh-chaurasia-634683263](https://linkedin.com/in/saurabh-chaurasia-634683263)
-- **Tech Stack**: JavaScript, TypeScript, Python, React, Node.js, C++, TailwindCSS, SQL, PostgreSQL, MongoDB, Docker
+## 📄 License
 
-## Contact
+MIT License
 
-- **GitHub**: [@srv-23](https://github.com/srv-23)
-- **LinkedIn**: [Saurabh Chaurasia](https://linkedin.com/in/saurabh-chaurasia-634683263)
-- **Location**: New Delhi, India
+## 👤 Author
 
-Project Link: [https://github.com/srv-23/mallbook](https://github.com/srv-23/mallbook) 
+Saurabh Chaurasia
+
+---
+
+**Status:** **Version:** 1.0.0 | **Last Updated:** January 2026
