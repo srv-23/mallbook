@@ -451,7 +451,7 @@ body.dark .badge {
   }
 }
 
-.dark body {
+.dark {
   background: linear-gradient(135deg, #18181b 0%, #27272a 100%);
   color: #f3f4f6;
 }
