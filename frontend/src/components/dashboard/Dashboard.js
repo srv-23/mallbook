@@ -1,30 +1,25 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
+import { useQuery } from 'react-query';
 import LoadingSpinner from '../common/LoadingSpinner';
-import { FaUser, FaCalendarCheck, FaStore, FaSignOutAlt, FaEdit, FaBell } from 'react-icons/fa';
+import { FaUser, FaCalendarCheck, FaStore, FaSignOutAlt, FaBell } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { priceDisplay } from '../../utils/currency';
 
 const Dashboard = () => {
   const { user, logout } = useAuth();
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchBookings = async () => {
-      setLoading(true);
-      try {
-        const res = await axios.get('/api/bookings');
-        setBookings(res.data.slice(0, 5));
-      } catch {
-        setBookings([]);
-      }
-      setLoading(false);
-    };
-    fetchBookings();
-  }, []);
+  // Shares the 'bookings' cache entry with the My Bookings page.
+  const { data: bookings = [], isLoading } = useQuery(
+    'bookings',
+    async () => {
+      const res = await axios.get('/api/bookings');
+      return res.data;
+    },
+    { select: (data) => data.slice(0, 5) }
+  );
 
   if (!user) return <LoadingSpinner />;
 
@@ -158,7 +153,7 @@ const Dashboard = () => {
             <h2 className="text-2xl font-bold text-gray-800">Recent Bookings</h2>
           </div>
 
-          {loading ? (
+          {isLoading ? (
             <LoadingSpinner />
           ) : bookings.length === 0 ? (
             <div className="text-center py-12">

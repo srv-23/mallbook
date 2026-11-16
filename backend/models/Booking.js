@@ -24,6 +24,12 @@ const bookingSchema = new mongoose.Schema({
     type: String,
     required: true
   },
+  // Derived from time + duration on creation. Kept for reporting and future
+  // overlap queries; the booking route still recomputes it from duration so
+  // records created before this field existed stay checkable.
+  endTime: {
+    type: String
+  },
   duration: {
     type: Number, // in minutes
     required: true
@@ -83,5 +89,12 @@ bookingSchema.pre('save', function(next) {
   this.updatedAt = Date.now();
   next();
 });
+
+// Indexes follow the query shapes used by the API:
+// - slot conflict lookup and store dashboards filter by service/store + day
+// - the customer booking list filters by user and sorts by date
+bookingSchema.index({ service: 1, date: 1, status: 1 });
+bookingSchema.index({ store: 1, date: -1 });
+bookingSchema.index({ user: 1, date: -1 });
 
 module.exports = mongoose.model('Booking', bookingSchema); 

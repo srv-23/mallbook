@@ -1,9 +1,12 @@
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const mongoose = require('mongoose');
+const moment = require('moment');
 const Store = require('./models/Store');
 const User = require('./models/User');
 const Service = require('./models/Service');
+const Booking = require('./models/Booking');
+const { applyDnsOverride, isDnsFailure, dnsHint } = require('./utils/dns');
 
 const floors = [
   { label: 'Ground Floor', number: 0 },
@@ -116,37 +119,137 @@ const defaultAvailability = {
 
 const defaultOperatingHours = { ...defaultAvailability };
 
+// Demo customers so the admin Users screen has something to show on day one.
+const demoCustomers = [
+  { name: 'Aarav Sharma', email: 'aarav@example.com', phone: '9810012301' },
+  { name: 'Diya Patel', email: 'diya@example.com', phone: '9810012302' },
+  { name: 'Kabir Singh', email: 'kabir@example.com', phone: '9810012303' },
+  { name: 'Meera Iyer', email: 'meera@example.com', phone: '9810012304' },
+  { name: 'Rohan Gupta', email: 'rohan@example.com', phone: '9810012305' },
+  { name: 'Sana Khan', email: 'sana@example.com', phone: '9810012306' },
+];
+
+// A fixed spread of bookings around today so the dashboard charts, revenue
+// cards and "my bookings" page are not empty. Offsets are relative to the day
+// the seed runs, which keeps the demo meaningful whenever it is executed.
+const demoBookings = [
+  { dayOffset: -9, time: '11:00', people: 2, status: 'completed' },
+  { dayOffset: -8, time: '16:00', people: 1, status: 'completed' },
+  { dayOffset: -7, time: '13:00', people: 3, status: 'completed' },
+  { dayOffset: -6, time: '18:00', people: 2, status: 'cancelled' },
+  { dayOffset: -5, time: '12:00', people: 1, status: 'completed' },
+  { dayOffset: -4, time: '15:00', people: 4, status: 'completed' },
+  { dayOffset: -3, time: '10:30', people: 2, status: 'no_show' },
+  { dayOffset: -2, time: '17:00', people: 2, status: 'completed' },
+  { dayOffset: -1, time: '14:00', people: 1, status: 'confirmed' },
+  { dayOffset: 0, time: '11:30', people: 2, status: 'confirmed' },
+  { dayOffset: 0, time: '16:30', people: 3, status: 'pending' },
+  { dayOffset: 1, time: '12:30', people: 2, status: 'pending' },
+  { dayOffset: 2, time: '19:00', people: 1, status: 'confirmed' },
+  { dayOffset: 3, time: '13:30', people: 4, status: 'pending' },
+  { dayOffset: 5, time: '18:30', people: 2, status: 'pending' },
+];
+
+const toMinutes = (time) => {
+  const [hours, minutes] = time.split(':').map(Number);
+  return hours * 60 + minutes;
+};
+
+const toTime = (minutes) =>
+  `${String(Math.floor(minutes / 60)).padStart(2, '0')}:${String(minutes % 60).padStart(2, '0')}`;
+
+// Build (but do not save) a demo booking. Kept separate from the insert loop so
+// the shape can be validated against the schema without a database.
+const buildBooking = ({ plan, service, customer, today }) => ({
+  user: customer._id,
+  service: service._id,
+  store: service.store,
+  date: today.clone().add(plan.dayOffset, 'day').toDate(),
+  time: plan.time,
+  endTime: toTime(toMinutes(plan.time) + Number(service.duration)),
+  duration: service.duration,
+  numberOfPeople: plan.people,
+  totalPrice: service.price * plan.people,
+  status: plan.status,
+  paymentStatus:
+    plan.status === 'cancelled'
+      ? 'refunded'
+      : ['confirmed', 'completed'].includes(plan.status)
+        ? 'paid'
+        : 'pending',
+  specialRequests: '',
+  notes: ''
+});
+
 async function seed() {
-  await mongoose.connect(process.env.MONGODB_URI, {
-    useNewUrlParser: true,
-    useUnifiedTopology: true,
-  });
+  // mongodb+srv:// URIs need an SRV lookup; honour DNS_SERVERS before connecting.
+  applyDnsOverride();
 
-  // Create a dummy store manager
-  await User.deleteMany({ email: 'manager@mall.com' });
-  const manager = await User.create({
-    name: 'Mall Manager',
-    email: 'manager@mall.com',
-    password: 'manager123',
-    phone: '9999999999',
-    role: 'store_manager',
-  });
+  try {
+    await mongoose.connect(process.env.MONGODB_URI, { serverSelectionTimeoutMS: 15000 });
+  } catch (error) {
+    console.error('❌ Could not connect to MongoDB:', error.message.split('\n')[0]);
+    if (isDnsFailure(error)) console.error(dnsHint(process.env.MONGODB_URI));
+    throw error;
+  }
 
-  // Remove old stores and services
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@mall.com';
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD || 'Admin@12345';
+  const managerEmail = process.env.SEED_MANAGER_EMAIL || 'manager@mall.com';
+  const managerPassword = process.env.SEED_MANAGER_PASSWORD || 'Manager@12345';
+  const customerPassword = process.env.SEED_CUSTOMER_PASSWORD || 'Customer@12345';
+
+  // Bookings reference users, stores and services, so they are cleared first.
+  await Booking.deleteMany({});
   await Store.deleteMany({});
   await Service.deleteMany({});
+
+  // Re-create the demo accounts from scratch so re-running the seed never trips
+  // the unique email index. Passwords come from the environment so a seeded
+  // production database does not end up with the documented defaults.
+  const demoEmails = [adminEmail, managerEmail, ...demoCustomers.map((c) => c.email)];
+  await User.deleteMany({ email: { $in: demoEmails } });
+
+  const admin = await User.create({
+    name: 'Mall Admin',
+    email: adminEmail,
+    password: adminPassword,
+    phone: '9999999998',
+    role: 'admin',
+    isVerified: true,
+  });
+
+  const manager = await User.create({
+    name: 'Mall Manager',
+    email: managerEmail,
+    password: managerPassword,
+    phone: '9999999999',
+    role: 'store_manager',
+    isVerified: true,
+  });
+
+  const customers = [];
+  for (const customer of demoCustomers) {
+    customers.push(
+      await User.create({
+        ...customer,
+        password: customerPassword,
+        role: 'customer',
+      })
+    );
+  }
 
   // Create stores
   const stores = [];
   for (const s of sampleStores) {
-    const floorObj = floors.find(f => f.number === s.floor);
+    const floorObj = floors.find((f) => f.number === s.floor);
     const store = await Store.create({
       name: s.name,
       description: `${s.name} on ${floorObj.label}`,
       category: s.category,
       location: {
         floor: s.floor,
-        unit: 'U1',
+        unit: `U${stores.length + 1}`,
         coordinates: { x: 0, y: 0 },
       },
       contact: {
@@ -164,11 +267,12 @@ async function seed() {
     stores.push(store);
   }
 
-  // Create services for each store
+  // Create one service per store
+  const services = [];
   for (let i = 0; i < stores.length; i++) {
     const store = stores[i];
     const serviceData = sampleServices[i % sampleServices.length];
-    await Service.create({
+    const service = await Service.create({
       ...serviceData,
       store: store._id,
       capacity: 10,
@@ -176,10 +280,56 @@ async function seed() {
       availability: defaultAvailability,
       rating: { average: 0, count: 0 },
     });
+    services.push(service);
   }
 
-  console.log('Database seeded with Indian mall services and floors!');
-  mongoose.disconnect();
+  // Bookings are written directly rather than through POST /api/bookings: the
+  // route rejects past dates, and a demo history is the whole point here.
+  const today = moment().startOf('day');
+
+  for (let i = 0; i < demoBookings.length; i++) {
+    const plan = demoBookings[i];
+    const service = services[i % services.length];
+    const customer = customers[i % customers.length];
+
+    await Booking.create(buildBooking({ plan, service, customer, today }));
+  }
+
+  const counts = {
+    users: await User.countDocuments(),
+    stores: await Store.countDocuments(),
+    services: await Service.countDocuments(),
+    bookings: await Booking.countDocuments(),
+  };
+
+  console.log('\nDatabase seeded with demo mall data.');
+  console.log(`  admin    ${admin._id}  ${admin.name}`);
+  console.log(`  manager  ${manager._id}  ${manager.name} (manages ${stores.length} stores)`);
+  console.log(`  ${customers.length} demo customers, ${services.length} services, ${demoBookings.length} bookings\n`);
+  console.log(`  users ${counts.users} | stores ${counts.stores} | services ${counts.services} | bookings ${counts.bookings}\n`);
+  console.log('  Sign in with:');
+  console.log(`    Admin:         ${adminEmail} / ${adminPassword}`);
+  console.log(`    Store manager: ${managerEmail} / ${managerPassword}`);
+  console.log(`    Customer:      ${demoCustomers[0].email} / ${customerPassword}`);
+  console.log('    (all demo customers share the customer password)\n');
 }
 
-seed().catch(err => { console.error(err); mongoose.disconnect(); }); 
+if (require.main === module) {
+  seed()
+    .catch((err) => {
+      console.error(err);
+      process.exitCode = 1;
+    })
+    .finally(() => mongoose.disconnect());
+}
+
+module.exports = {
+  seed,
+  buildBooking,
+  demoCustomers,
+  demoBookings,
+  sampleStores,
+  sampleServices,
+  defaultAvailability,
+  defaultOperatingHours
+};

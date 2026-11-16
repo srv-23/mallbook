@@ -6,39 +6,67 @@ const cors = require('cors');
 
 // Middleware imports
 const errorHandler = require('./middleware/errorHandler');
-const { limiter, authLimiter, apiLimiter } = require('./middleware/rateLimit');
+const { limiter, apiLimiter } = require('./middleware/rateLimit');
+const { applyDnsOverride, isDnsFailure, dnsHint } = require('./utils/dns');
+
+// Must run before mongoose connects: an mongodb+srv:// URI needs SRV lookups.
+applyDnsOverride();
+
+// Fail fast instead of silently signing tokens with a public fallback secret.
+if (!process.env.JWT_SECRET) {
+  console.error('❌ JWT_SECRET is not set. Refusing to start with forgeable tokens.');
+  process.exit(1);
+}
 
 const app = express();
 
+// Behind Vercel/Heroku the client IP lives in X-Forwarded-For. Without this,
+// every request shares the proxy's IP and rate limiting is useless.
+if (process.env.NODE_ENV === 'production') {
+  app.set('trust proxy', 1);
+}
+
 // ============ MIDDLEWARE ============
-// CORS configuration
+const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 app.use(cors({
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin(origin, callback) {
+    // Allow tools without an Origin header (curl, health checks) and any
+    // configured frontend origin, including comma-separated preview URLs.
+    // Disallowed origins simply get no CORS headers; the browser blocks them.
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, false);
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // Body parser
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 
-// Apply rate limiting
+// Apply the global rate limiter
 app.use(limiter);
 
 // ============ DATABASE CONNECTION ============
 console.log('🔗 Connecting to MongoDB...');
-mongoose.connect(process.env.MONGODB_URI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-})
-.then(() => {
-  console.log('✅ MongoDB connected successfully');
-})
-.catch((err) => {
-  console.error('❌ MongoDB connection error:', err.message);
-  process.exit(1);
-});
+mongoose.connect(process.env.MONGODB_URI)
+  .then(() => {
+    console.log('✅ MongoDB connected successfully');
+  })
+  .catch((err) => {
+    console.error('❌ MongoDB connection error:', err.message);
+    if (isDnsFailure(err)) {
+      console.error(dnsHint(process.env.MONGODB_URI));
+    }
+    process.exit(1);
+  });
 
 // ============ HEALTH CHECK ============
 app.get('/api/health', (req, res) => {
@@ -51,7 +79,8 @@ app.get('/api/health', (req, res) => {
 });
 
 // ============ API ROUTES ============
-app.use('/api/auth', authLimiter, require('./routes/auth'));
+// Auth endpoints get their own stricter limiter inside routes/auth.js.
+app.use('/api/auth', apiLimiter, require('./routes/auth'));
 app.use('/api/users', apiLimiter, require('./routes/users'));
 app.use('/api/services', apiLimiter, require('./routes/services'));
 app.use('/api/bookings', apiLimiter, require('./routes/bookings'));
@@ -60,18 +89,17 @@ app.use('/api/admin', apiLimiter, require('./routes/admin'));
 
 // ============ STATIC FILES (Production) ============
 if (process.env.NODE_ENV === 'production') {
-  // Serve static files from frontend build
   const staticPath = path.join(__dirname, '../frontend/build');
   app.use(express.static(staticPath));
-  
-  // Serve index.html for all routes not caught by API
-  app.get('*', (req, res) => {
+
+  // Serve index.html for client-side routes, but never for unknown API paths.
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) return next();
     res.sendFile(path.join(staticPath, 'index.html'));
   });
 }
 
 // ============ ERROR HANDLING ============
-// 404 handler - must be before global error handler
 app.use((req, res) => {
   res.status(404).json({
     success: false,
@@ -81,7 +109,6 @@ app.use((req, res) => {
   });
 });
 
-// Global error handler - must be last
 app.use(errorHandler);
 
 // ============ SERVER START ============
@@ -94,24 +121,24 @@ const server = app.listen(PORT, () => {
 ║  🚀 MallBook Backend Server                        ║
 ║  ✓ Port: ${PORT}
 ║  ✓ Environment: ${NODE_ENV}
-║  ✓ MongoDB: Connected                             ║
-║  ✓ All Middleware: Active                         ║
+║  ✓ MongoDB: connecting                            ║
 ╚════════════════════════════════════════════════════╝
   `);
 });
 
-// Handle graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully...');
+const shutdown = (signal) => {
+  console.log(`${signal} received, shutting down gracefully...`);
   server.close(() => {
     console.log('Server closed');
     mongoose.connection.close();
     process.exit(0);
   });
-});
+};
 
-// Handle unhandled promise rejections
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
 process.on('unhandledRejection', (err) => {
   console.error('Unhandled Rejection:', err);
   process.exit(1);
-}); 
+});

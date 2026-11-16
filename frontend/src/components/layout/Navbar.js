@@ -5,7 +5,7 @@ import { FaShoppingBag, FaSignInAlt } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 
 const Navbar = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
 
   return (
     <motion.nav 
@@ -35,6 +35,11 @@ const Navbar = () => {
             <Link to="/stores" className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-4 py-2">
               Stores
             </Link>
+            {user?.role === 'admin' && (
+              <Link to="/admin" className="text-gray-700 hover:text-blue-600 transition-colors font-medium px-4 py-2">
+                Admin
+              </Link>
+            )}
           </div>
 
           {/* Login Button */}

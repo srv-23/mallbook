@@ -193,10 +193,12 @@ const Login = () => {
                 Create one
               </Link>
             </p>
-            <div className="text-center">
+            <div className="text-center space-y-1">
               <p className="text-xs text-gray-500">
-                Demo: use any email and password (min 6 chars)
+                Accounts created by <code>npm run seed</code>:
               </p>
+              <p className="text-xs text-gray-600 font-mono">admin@mall.com / Admin@12345</p>
+              <p className="text-xs text-gray-600 font-mono">manager@mall.com / Manager@12345</p>
             </div>
           </motion.div>
         </motion.div>

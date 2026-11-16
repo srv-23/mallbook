@@ -1,52 +1,41 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import LoadingSpinner from '../common/LoadingSpinner';
+import { useQuery } from 'react-query';
 import { FaSearch, FaMapMarkerAlt, FaPhone, FaUserCircle, FaFilter } from 'react-icons/fa';
 import { motion } from 'framer-motion';
-import { toast } from 'react-toastify';
 
 const Stores = () => {
-  const [stores, setStores] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [floors, setFloors] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
   const [floor, setFloor] = useState('');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [categoriesRes, floorsRes] = await Promise.all([
-          axios.get('/api/stores/categories'),
-          axios.get('/api/stores/floors')
-        ]);
-        setCategories(categoriesRes.data);
-        setFloors(floorsRes.data);
-      } catch {}
-    };
-    fetchData();
-  }, []);
+  const {
+    data: stores = [],
+    isLoading,
+    isError
+  } = useQuery(
+    ['stores', { search, category, floor }],
+    async () => {
+      const params = {};
+      if (search) params.search = search;
+      if (category) params.category = category;
+      if (floor) params.floor = floor;
+      const res = await axios.get('/api/stores', { params });
+      return res.data;
+    },
+    { keepPreviousData: true }
+  );
 
-  useEffect(() => {
-    const fetchStores = async () => {
-      setLoading(true);
-      try {
-        const params = {};
-        if (search) params.search = search;
-        if (category) params.category = category;
-        if (floor) params.floor = floor;
-        const res = await axios.get('/api/stores', { params });
-        setStores(res.data);
-      } catch {
-        setStores([]);
-        toast.error('Failed to fetch stores.');
-      }
-      setLoading(false);
-    };
-    fetchStores();
-  }, [search, category, floor]);
+  const { data: categories = [] } = useQuery('storeCategories', async () => {
+    const res = await axios.get('/api/stores/categories');
+    return res.data;
+  });
+
+  const { data: floors = [] } = useQuery('storeFloors', async () => {
+    const res = await axios.get('/api/stores/floors');
+    return res.data;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
@@ -135,7 +124,15 @@ const Stores = () => {
         </motion.div>
 
         {/* Stores Grid */}
-        {loading ? (
+        {isError ? (
+          <div className="text-center py-16">
+            <FaUserCircle className="text-6xl text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 text-xl font-semibold">Could not load stores</p>
+            <p className="text-gray-400 text-sm mt-2">
+              Check that the API is running and try again.
+            </p>
+          </div>
+        ) : isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
               <div

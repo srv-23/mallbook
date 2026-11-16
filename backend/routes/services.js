@@ -2,7 +2,10 @@ const express = require('express');
 const { check, validationResult } = require('express-validator');
 const Service = require('../models/Service');
 const Store = require('../models/Store');
-const { auth, storeManagerAuth } = require('../middleware/auth');
+const Booking = require('../models/Booking');
+const { storeManagerAuth } = require('../middleware/auth');
+const { canManageStore, forbidden } = require('../utils/storeAccess');
+const { escapeRegex } = require('../utils/regex');
 
 const router = express.Router();
 
@@ -23,9 +26,10 @@ router.get('/', async (req, res) => {
     }
 
     if (search) {
+      const term = escapeRegex(search.trim());
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { name: { $regex: term, $options: 'i' } },
+        { description: { $regex: term, $options: 'i' } }
       ];
     }
 
@@ -36,7 +40,7 @@ router.get('/', async (req, res) => {
     res.json(services);
   } catch (error) {
     console.error(error.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
@@ -49,7 +53,7 @@ router.get('/categories', async (req, res) => {
     res.json(categories);
   } catch (error) {
     console.error(error.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
@@ -62,23 +66,23 @@ router.get('/:id', async (req, res) => {
       .populate('store', 'name location category contact operatingHours');
 
     if (!service) {
-      return res.status(404).json({ message: 'Service not found' });
+      return res.status(404).json({ success: false, message: 'Service not found' });
     }
 
     res.json(service);
   } catch (error) {
     console.error(error.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
 // @route   POST /api/services
-// @desc    Create a new service (store managers and admins only)
-// @access  Private
+// @desc    Create a new service for a store the caller manages
+// @access  Private/Store manager or admin
 router.post('/', [
   storeManagerAuth,
-  check('name', 'Service name is required').not().isEmpty(),
-  check('description', 'Description is required').not().isEmpty(),
+  check('name', 'Service name is required').trim().not().isEmpty(),
+  check('description', 'Description is required').trim().not().isEmpty(),
   check('category', 'Category is required').isIn(['restaurant', 'entertainment', 'beauty', 'fitness', 'shopping', 'services', 'facilities']),
   check('store', 'Store ID is required').not().isEmpty(),
   check('price', 'Price must be a positive number').isFloat({ min: 0 }),
@@ -86,7 +90,7 @@ router.post('/', [
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    return res.status(400).json({ success: false, errors: errors.array() });
   }
 
   const {
@@ -103,10 +107,13 @@ router.post('/', [
   } = req.body;
 
   try {
-    // Check if store exists
     const storeExists = await Store.findById(store);
     if (!storeExists) {
-      return res.status(400).json({ message: 'Store not found' });
+      return res.status(400).json({ success: false, message: 'Store not found' });
+    }
+
+    if (!(await canManageStore(req.user, store))) {
+      return forbidden(res);
     }
 
     const service = new Service({
@@ -135,22 +142,26 @@ router.post('/', [
     const populatedService = await Service.findById(service._id)
       .populate('store', 'name location category');
 
-    res.json(populatedService);
+    res.status(201).json(populatedService);
   } catch (error) {
     console.error(error.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
 // @route   PUT /api/services/:id
-// @desc    Update a service (store managers and admins only)
-// @access  Private
+// @desc    Update a service (its store's manager or an admin)
+// @access  Private/Store manager or admin
 router.put('/:id', storeManagerAuth, async (req, res) => {
   try {
     const service = await Service.findById(req.params.id);
 
     if (!service) {
-      return res.status(404).json({ message: 'Service not found' });
+      return res.status(404).json({ success: false, message: 'Service not found' });
+    }
+
+    if (!(await canManageStore(req.user, service.store))) {
+      return forbidden(res);
     }
 
     const {
@@ -185,27 +196,41 @@ router.put('/:id', storeManagerAuth, async (req, res) => {
     res.json(populatedService);
   } catch (error) {
     console.error(error.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
 // @route   DELETE /api/services/:id
-// @desc    Delete a service (store managers and admins only)
-// @access  Private
+// @desc    Delete a service that has never been booked
+// @access  Private/Store manager or admin
 router.delete('/:id', storeManagerAuth, async (req, res) => {
   try {
     const service = await Service.findById(req.params.id);
 
     if (!service) {
-      return res.status(404).json({ message: 'Service not found' });
+      return res.status(404).json({ success: false, message: 'Service not found' });
     }
 
-    await service.remove();
-    res.json({ message: 'Service removed' });
+    if (!(await canManageStore(req.user, service.store))) {
+      return forbidden(res);
+    }
+
+    // Deleting a booked service would leave dangling references on existing
+    // bookings, so booked services must be deactivated instead.
+    const bookingCount = await Booking.countDocuments({ service: req.params.id });
+    if (bookingCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'This service has bookings. Deactivate it instead of deleting.'
+      });
+    }
+
+    await service.deleteOne();
+    res.json({ success: true, message: 'Service removed' });
   } catch (error) {
     console.error(error.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-module.exports = router; 
+module.exports = router;

@@ -63,4 +63,9 @@ const serviceSchema = new mongoose.Schema({
   }
 });
 
+// Service list filters (active catalogue) and the per-store service lookup
+// used when opening a store page or validating a booking.
+serviceSchema.index({ isActive: 1, category: 1 });
+serviceSchema.index({ store: 1, isActive: 1 });
+
 module.exports = mongoose.model('Service', serviceSchema); 

@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react';
+import { useQueryClient } from 'react-query';
 import axios from 'axios';
 
 const AuthContext = createContext();
@@ -61,6 +62,7 @@ const authReducer = (state, action) => {
 
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
+  const queryClient = useQueryClient();
 
   // Set auth token header
   const setAuthToken = (token) => {
@@ -82,12 +84,15 @@ export const AuthProvider = ({ children }) => {
         dispatch({ type: 'USER_LOADED', payload: res.data });
       } catch (error) {
         console.error('Auth error:', error);
+        // Drop cached server state so a new session cannot read the previous user's data.
+        queryClient.clear();
         dispatch({ type: 'AUTH_ERROR' });
       }
     } else {
+      queryClient.clear();
       dispatch({ type: 'AUTH_ERROR' });
     }
-  }, []);
+  }, [queryClient]);
 
   // Load user on mount
   useEffect(() => {
@@ -148,6 +153,7 @@ export const AuthProvider = ({ children }) => {
 
   // Logout user
   const logout = () => {
+    queryClient.clear();
     dispatch({ type: 'LOGOUT' });
   };
 

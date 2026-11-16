@@ -65,4 +65,8 @@ const storeSchema = new mongoose.Schema({
   }
 });
 
+// Public catalogue filters and the floor filter used by the store list.
+storeSchema.index({ isActive: 1, category: 1 });
+storeSchema.index({ 'location.floor': 1 });
+
 module.exports = mongoose.model('Store', storeSchema); 

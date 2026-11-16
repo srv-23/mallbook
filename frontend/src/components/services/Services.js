@@ -1,46 +1,35 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import LoadingSpinner from '../common/LoadingSpinner';
-import { FaSearch, FaStore, FaTags, FaUserCircle, FaFilter, FaClock } from 'react-icons/fa';
+import { useQuery } from 'react-query';
+import { FaSearch, FaTags, FaUserCircle, FaFilter, FaClock } from 'react-icons/fa';
 import { motion } from 'framer-motion';
-import { toast } from 'react-toastify';
 import { priceDisplay } from '../../utils/currency';
 
 const Services = () => {
-  const [services, setServices] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('');
 
-  useEffect(() => {
-    const fetchCategories = async () => {
-      try {
-        const res = await axios.get('/api/services/categories');
-        setCategories(res.data);
-      } catch {}
-    };
-    fetchCategories();
-  }, []);
+  const {
+    data: services = [],
+    isLoading,
+    isError
+  } = useQuery(
+    ['services', { search, category }],
+    async () => {
+      const params = {};
+      if (search) params.search = search;
+      if (category) params.category = category;
+      const res = await axios.get('/api/services', { params });
+      return res.data;
+    },
+    { keepPreviousData: true }
+  );
 
-  useEffect(() => {
-    const fetchServices = async () => {
-      setLoading(true);
-      try {
-        const params = {};
-        if (search) params.search = search;
-        if (category) params.category = category;
-        const res = await axios.get('/api/services', { params });
-        setServices(res.data);
-      } catch {
-        setServices([]);
-        toast.error('Failed to fetch services.');
-      }
-      setLoading(false);
-    };
-    fetchServices();
-  }, [search, category]);
+  const { data: categories = [] } = useQuery('serviceCategories', async () => {
+    const res = await axios.get('/api/services/categories');
+    return res.data;
+  });
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4 md:p-8">
@@ -105,7 +94,15 @@ const Services = () => {
         </motion.div>
 
         {/* Services Grid */}
-        {loading ? (
+        {isError ? (
+          <div className="text-center py-16">
+            <FaUserCircle className="text-6xl text-gray-300 mx-auto mb-4" />
+            <p className="text-gray-500 text-xl font-semibold">Could not load services</p>
+            <p className="text-gray-400 text-sm mt-2">
+              Check that the API is running and try again.
+            </p>
+          </div>
+        ) : isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
               <div

@@ -1,613 +1,483 @@
-# 🏬 MallBook - Shopping Mall Booking System
+# MallBook
 
-> A modern full-stack web application for discovering, booking services, and managing shopping mall reservations. Built with cutting-edge technologies for a seamless user experience.
+A shopping-mall booking system: customers discover stores and services, reserve a
+time slot, and manage their bookings; store managers manage their own store;
+admins see analytics and manage accounts and roles.
 
-**Version:** 1.0.0 | **Last Updated:** January 2026
-
----
-
-## 🎯 Overview
-
-MallBook is a comprehensive booking management system designed for shopping malls. It enables:
-
-- **Customers** to discover stores, browse services, and make bookings across multiple mall locations
-- **Admins** to manage stores, services, bookings, and view real-time analytics
-- **Store Managers** to handle service listings and booking requests
-
-The application features a responsive, modern UI with smooth animations, real-time updates, and a robust backend API supporting millions of requests.
+MERN stack — React 18 (Create React App), Express 4, MongoDB with Mongoose 7.
 
 ---
 
-## ✨ Features
+## Contents
 
-### 🔐 Authentication & Security
-- **JWT-based Authentication** - Secure token-based user sessions
-- **Password Hashing** - bcryptjs for secure password storage
-- **Protected Routes** - Role-based access control throughout the app
-- **Session Management** - Automatic token refresh and expiration
-
-### 🏪 Store & Service Management
-- **Browse Stores** - Explore stores organized by floors (Ground, First, Second)
-- **Floor-Based Navigation** - Easy filtering and discovery
-- **Service Catalog** - Detailed service listings with pricing in INR
-- **Real-time Availability** - Up-to-date store and service information
-
-### 📅 Booking System
-- **Intuitive Booking Interface** - Simple, step-by-step booking process
-- **Booking Confirmation** - Instant confirmation with booking reference
-- **Booking History** - View all past and upcoming bookings
-- **Booking Cancellation** - Cancel bookings with one click
-
-### 📊 Admin Dashboard
-- **Real-time Analytics** - View booking statistics and trends
-- **Revenue Tracking** - Monitor earnings across stores
-- **Booking Management** - Comprehensive booking administration
-- **User Management** - Manage customers and store managers
-
-### 🎨 User Experience
-- **Responsive Design** - Works seamlessly on desktop, tablet, and mobile
-- **Smooth Animations** - Framer Motion for fluid, polished interactions
-- **Modern UI Components** - Glassmorphism effects and gradient styling
-- **Loading States** - Smooth loading indicators and skeleton screens
-
-### 🔔 Additional Features
-- **Rate Limiting** - Protect API from abuse
-- **Error Handling** - Comprehensive error messages and recovery
-- **Data Validation** - Both client and server-side validation
-- **Search & Filter** - Advanced filtering by floor, category, price
+- [Features](#features)
+- [Tech stack](#tech-stack)
+- [Architecture](#architecture)
+- [Request lifecycle](#request-lifecycle)
+- [Project structure](#project-structure)
+- [Data model](#data-model)
+- [Domain rules](#domain-rules)
+- [API](#api)
+- [Getting started](#getting-started)
+- [Scripts](#scripts)
+- [Testing & known limitations](#testing--known-limitations)
+- [Roadmap](#roadmap)
 
 ---
 
-## 🏗️ Architecture
+## Features
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                    CLIENT (React.js)                        │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  React Components (Auth, Stores, Services, Bookings) │  │
-│  │  State Management (React Context API)                │  │
-│  │  Styling (Tailwind CSS + Custom Global CSS)          │  │
-│  │  Animations (Framer Motion)                          │  │
-│  └──────────────────────────────────────────────────────┘  │
-└──────────────────────┬──────────────────────────────────────┘
-                       │ HTTP/REST API
-                       │
-┌──────────────────────▼──────────────────────────────────────┐
-│                  SERVER (Express.js)                        │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  Routes (Auth, Stores, Services, Bookings, Admin)   │  │
-│  │  Middleware (JWT Auth, Error Handler, Rate Limit)   │  │
-│  │  Business Logic Controllers                          │  │
-│  │  Data Validation & Security                          │  │
-│  └──────────────────────────────────────────────────────┘  │
-└──────────────────────┬──────────────────────────────────────┘
-                       │ Mongoose ODM
-                       │
-┌──────────────────────▼──────────────────────────────────────┐
-│                  DATABASE (MongoDB)                         │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  Users Collection     (Authentication)               │  │
-│  │  Stores Collection    (Store Information)            │  │
-│  │  Services Collection  (Service Listings)             │  │
-│  │  Bookings Collection  (Booking Records)              │  │
-│  └──────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
-```
+**Customers**
+
+- Browse and filter stores by floor, category and free-text search
+- Browse services with per-weekday opening hours
+- Book a slot with real availability, overlap and capacity checks
+- View and cancel their own bookings
+
+**Store managers**
+
+- Read and edit only the store they are assigned to, and its services
+- See that store's bookings and move them through their statuses
+
+**Admins**
+
+- Analytics: totals, revenue for today/week/month, status breakdown, top services
+- All bookings with filters and pagination
+- User management: search accounts and reassign roles from the UI
+
+**Cross-cutting**
+
+- JWT authentication, bcrypt password hashing, server-side validation
+- Tiered rate limiting, login-attempt throttling
+- Route-level code splitting, React Query caching, Tailwind CSS
+- Compound MongoDB indexes derived from the queries the API actually runs
 
 ---
 
-## 🛠️ Tech Stack
+## Tech stack
 
-### Frontend Technologies
-
-| Technology | Purpose | Version |
-|-----------|---------|---------|
-| **React** | UI library for building components | 18.x |
-| **React Router** | Client-side routing and navigation | 6.x |
-| **Tailwind CSS** | Utility-first CSS framework | 3.x |
-| **Framer Motion** | Animation and motion library | 10.x |
-| **Axios** | HTTP client for API requests | 1.x |
-| **React Query** | Data fetching and caching | 3.x |
-| **React Icons** | Icon library (FontAwesome) | 6.x |
-| **Recharts** | Charting library for analytics | Latest |
-| **React Toastify** | Toast notifications | Latest |
-
-### Backend Technologies
-
-| Technology | Purpose | Version |
-|-----------|---------|---------|
-| **Node.js** | JavaScript runtime | 16.x+ |
-| **Express** | Web framework | 4.x |
-| **MongoDB** | NoSQL database | Latest |
-| **Mongoose** | MongoDB object modeling | 7.x |
-| **JWT** | Authentication tokens | Latest |
-| **bcryptjs** | Password hashing | 2.x |
-| **CORS** | Cross-origin resource sharing | Latest |
-| **Dotenv** | Environment variable management | Latest |
-
-### Development Tools
-
-- **npm** - Package manager
-- **Git** - Version control
-- **Vercel** - Frontend deployment
-- **Heroku/Railway/Render** - Backend deployment
+| Layer     | Choices                                                                                                                   |
+| --------- | ------------------------------------------------------------------------------------------------------------------------- |
+| Front end | React 18, React Router 6, React Query 3, Axios, Tailwind CSS 3, Framer Motion 10, Recharts 2, React Icons, React Toastify |
+| Back end  | Node 18+, Express 4, Mongoose 7, jsonwebtoken, bcryptjs, express-validator, express-rate-limit, moment                    |
+| Database  | MongoDB (local or Atlas)                                                                                                  |
+| Tooling   | Create React App 5, PostCSS + Autoprefixer, nodemon, concurrently                                                         |
 
 ---
 
-## 📁 Project Structure
+## Architecture
 
+Three processes in development: the CRA dev server (`:3000`), the Express API
+(`:5000`), and MongoDB. The browser only ever talks to the CRA server; CRA proxies
+`/api/*` to Express, so the front end uses relative URLs and there is no CORS
+problem in development. In production Vercel routes `/api/*` to the Express
+function and serves the built bundle for everything else (deep links need the
+rewrite noted under [Deployment](#deployment)).
+
+```mermaid
+flowchart LR
+  subgraph client["Browser"]
+    ui["React SPA<br/>lazy routes + React Query cache"]
+  end
+
+  subgraph edge["Origin"]
+    proxy["CRA proxy :3000 → :5000<br/>or Vercel /api/* route"]
+  end
+
+  subgraph api["Express API"]
+    mw["middleware chain<br/>cors → json → limiters"]
+    guard["route guard<br/>authenticate + requireRoles"]
+    handler["route handler<br/>validation + business rules"]
+    model["Mongoose models"]
+  end
+
+  db[("MongoDB Atlas")]
+
+  ui -->|"relative /api/... + Bearer token"| proxy
+  proxy --> mw
+  mw --> guard
+  guard -->|"401 / 403 JSON"| ui
+  guard -->|"req.user"| handler
+  handler --> model
+  model --> db
+  handler -->|"JSON"| ui
 ```
-mallbook/
-│
-├── backend/                          # Express.js API Server
-│   ├── middleware/
-│   │   ├── auth.js                  # JWT authentication middleware
-│   │   ├── errorHandler.js          # Global error handling
-│   │   └── rateLimit.js             # API rate limiting
-│   │
-│   ├── models/
-│   │   ├── User.js                  # User schema (customers, admins)
-│   │   ├── Store.js                 # Store schema with floor info
-│   │   ├── Service.js               # Service schema for stores
-│   │   └── Booking.js               # Booking schema with references
-│   │
-│   ├── routes/
-│   │   ├── auth.js                  # Authentication endpoints
-│   │   ├── stores.js                # Store management endpoints
-│   │   ├── services.js              # Service endpoints
-│   │   ├── bookings.js              # Booking endpoints
-│   │   ├── users.js                 # User management endpoints
-│   │   └── admin.js                 # Admin dashboard endpoints
-│   │
-│   ├── server.js                    # Main server entry point
-│   ├── seed.js                      # Database seeding script
-│   └── package.json                 # Backend dependencies
-│
-├── frontend/                         # React.js Application
-│   ├── public/
-│   │   └── index.html               # HTML entry point
-│   │
-│   ├── src/
-│   │   ├── components/
-│   │   │   ├── admin/
-│   │   │   │   └── AdminDashboard.js       # Admin analytics dashboard
-│   │   │   ├── auth/
-│   │   │   │   ├── Login.js                # Login component
-│   │   │   │   └── Register.js             # Registration component
-│   │   │   ├── bookings/
-│   │   │   │   ├── BookingForm.js          # Booking creation form
-│   │   │   │   └── MyBookings.js           # User bookings history
-│   │   │   ├── common/
-│   │   │   │   └── LoadingSpinner.js       # Loading indicator
-│   │   │   ├── dashboard/
-│   │   │   │   └── Dashboard.js            # User dashboard
-│   │   │   ├── layout/
-│   │   │   │   ├── Navbar.js               # Navigation bar
-│   │   │   │   └── Footer.js               # Footer component
-│   │   │   ├── pages/
-│   │   │   │   └── Home.js                 # Landing page
-│   │   │   ├── services/
-│   │   │   │   ├── Services.js             # Services listing
-│   │   │   │   └── ServiceDetail.js        # Service details
-│   │   │   └── stores/
-│   │   │       ├── Stores.js               # Stores listing with filters
-│   │   │       └── StoreDetail.js          # Store details page
-│   │   │
-│   │   ├── contexts/
-│   │   │   └── AuthContext.js              # Authentication state
-│   │   │
-│   │   ├── utils/
-│   │   │   └── currency.js                 # Currency formatting utilities
-│   │   │
-│   │   ├── App.js                   # Main app component
-│   │   ├── index.js                 # React entry point
-│   │   └── index.css                # Global styles & utilities
-│   │
-│   └── package.json                 # Frontend dependencies
-│
-├── package.json                      # Root scripts for both projects
-├── vercel.json                       # Vercel deployment config
-└── README.md                         # Project documentation
-```
+
+**Layers, and why they exist**
+
+- **Middleware chain** — CORS allowlist from `CLIENT_URL`, a 1 MB JSON body cap,
+  a global limiter (100 requests / 15 min per IP), then a per-router limiter
+  (30 / min). `trust proxy` is enabled in production so limits apply per client,
+  not per load balancer.
+- **Route guards** — `authenticate()` verifies the JWT and loads the user from
+  MongoDB; `requireRoles(...)` compares `user.role`. The token deliberately does
+  **not** carry the role, so a demotion applies on the next request instead of
+  when the token expires.
+- **Handlers** — `express-validator` for shape, then domain rules (availability,
+  overlap, capacity, ownership). Each handler answers with one JSON shape.
+- **Models** — Mongoose schemas own the invariants that must survive any caller:
+  enums, required fields, the unique email index, compound indexes.
+
+**Front-end shape**
+
+`src/index.js` mounts `QueryClientProvider` → `BrowserRouter` → `AuthProvider` →
+`App`. `App.js` lazy-loads every page behind one `Suspense`, and guards routes
+with `PrivateRoute` / `AdminRoute`. Screens use `useQuery` for reads and
+`useMutation` + `invalidateQueries` for writes, so a cancellation refreshes both
+the booking list and the dashboard.
 
 ---
 
-## 🗄️ Database Schema
+## Request lifecycle
 
-### Users Collection
-```javascript
-{
-  _id: ObjectId,
-  name: String,
-  email: String (unique),
-  password: String (hashed),
-  role: String (customer|admin|manager),
-  isActive: Boolean,
-  createdAt: Date,
-  updatedAt: Date
-}
+**An authenticated read** — `GET /api/admin/dashboard`:
+
+1. Browser sends the request with `Authorization: Bearer <jwt>`, which Axios
+   attaches globally after login.
+2. CRA proxy forwards it to Express.
+3. `cors` checks the `Origin` against `CLIENT_URL`; `express.json` parses the body;
+   the global limiter counts the request.
+4. The `/api/admin` router runs `apiLimiter`, then the `adminAuth` guard.
+5. `adminAuth` → `authenticate()` strips `Bearer`, verifies the signature and
+   expiry, loads the user from MongoDB and attaches `req.user`.
+6. `requireRoles('admin')` compares `req.user.role`; a non-admin gets exactly one
+   `403` response and the handler never runs.
+7. The handler runs its aggregations, populates the recent bookings, and returns
+   JSON.
+8. Any thrown error reaches the shared `errorHandler`, so failures are JSON with a
+   status code — never a stack trace.
+
+**Login, and what the client keeps**
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor U as Browser
+  participant A as Express API
+  participant DB as MongoDB
+
+  U->>A: POST /api/auth/login {email, password}
+  A->>A: express-validator (email format, password present)
+  A->>DB: User.findOne({email})
+  DB-->>A: user document
+  A->>A: bcrypt.compare(password, hash)
+  A->>A: sign JWT {userId}, 7d
+  A-->>U: 200 token + {id, name, email, role}
+
+  Note over U: token in localStorage,<br/>Axios default Authorization header
+
+  U->>A: GET /api/bookings (Bearer token)
+  A->>A: authenticate(): verify → load user from DB
+  A->>DB: Booking.find({user})
+  DB-->>A: bookings
+  A-->>U: 200 JSON
 ```
 
-### Stores Collection
-```javascript
-{
-  _id: ObjectId,
-  name: String,
-  description: String,
-  floor: Number (0=Ground, 1=First, 2=Second),
-  category: String,
-  image: String (URL),
-  rating: Number,
-  location: String,
-  contactPhone: String,
-  isOpen: Boolean,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
+The login response is the only place the client learns its role. The server never
+trusts it back: every request re-derives the role from the database.
 
-### Services Collection
-```javascript
-{
-  _id: ObjectId,
-  storeId: ObjectId (ref: Store),
-  name: String,
-  description: String,
-  price: Number (in INR),
-  duration: Number (in minutes),
-  maxCapacity: Number,
-  isAvailable: Boolean,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
+**A write with domain rules** — `POST /api/bookings`:
 
-### Bookings Collection
-```javascript
-{
-  _id: ObjectId,
-  userId: ObjectId (ref: User),
-  storeId: ObjectId (ref: Store),
-  serviceId: ObjectId (ref: Service),
-  bookingDate: Date,
-  bookingTime: String,
-  guests: Number,
-  totalPrice: Number,
-  status: String (pending|confirmed|cancelled),
-  bookingReference: String,
-  specialRequests: String,
-  createdAt: Date,
-  updatedAt: Date
-}
+1. `auth` guard → `req.user`.
+2. `express-validator`: valid Mongo id, ISO-8601 date, `HH:mm` time, people ≥ 1,
+   request text ≤ 500 chars.
+3. Load the service and its store; reject missing or inactive.
+4. Reject past dates and weekdays the service is closed.
+5. Convert to minutes and reject a slot that runs outside opening hours.
+6. Load that day's `pending`/`confirmed` bookings for the service and test
+   interval overlap — `startA < endB && startB < endA`, not string equality.
+7. Enforce capacity across overlapping bookings; capacity 1 means the slot is
+   simply taken.
+8. Charge `price × people`, derive `endTime` from `time + duration`, insert.
+9. Populate and return `201`.
+
+---
+
+## Project structure
+
+```
+backend/
+  middleware/
+    auth.js            authenticate(), requireRoles(), adminAuth, storeManagerAuth
+    rateLimit.js       global, per-API and auth-specific limiters
+    errorHandler.js    single JSON error response
+  models/
+    User.js            customers, store managers, admins
+    Store.js           mall store, floor, hours, assigned manager
+    Service.js         bookable service offered by a store
+    Booking.js         reservation with slot, price and status
+  routes/
+    auth.js  users.js  stores.js  services.js  bookings.js  admin.js
+  utils/
+    storeAccess.js     canManageStore() ownership check
+    regex.js           escapes user input used in $regex
+    dns.js             opt-in resolver override for SRV URIs
+  server.js            app wiring, CORS, static build, graceful shutdown
+  seed.js              demo data (destructive)
+
+frontend/
+  public/index.html
+  src/
+    App.js                     lazy routes + route guards
+    index.js                   QueryClientProvider, Router, AuthProvider
+    index.css                  Tailwind layers + component classes
+    components/
+      admin/     AdminDashboard.js, AdminUsers.js, AdminTabs.js
+      auth/      Login.js, Register.js
+      bookings/  BookingForm.js, MyBookings.js
+      common/    LoadingSpinner.js
+      dashboard/ Dashboard.js
+      layout/    Navbar.js, Footer.js
+      pages/     Home.js
+      services/  Services.js, ServiceDetail.js
+      stores/    Stores.js, StoreDetail.js
+    contexts/AuthContext.js    token, user, login/logout, cache clearing
+    utils/currency.js          INR formatting
+  tailwind.config.js
+  postcss.config.js
 ```
 
 ---
 
-## 📋 Prerequisites
+## Data model
 
-- **Node.js** v16 or higher
-- **npm** or **yarn** package manager
-- **MongoDB** (local or cloud - MongoDB Atlas)
-- **Git** for version control
-- Basic understanding of REST APIs
+```mermaid
+erDiagram
+  USER ||--o{ BOOKING : places
+  USER |o--o{ STORE : manages
+  STORE ||--o{ SERVICE : offers
+  STORE ||--o{ BOOKING : receives
+  SERVICE ||--o{ BOOKING : "booked as"
+```
 
-### Environment Setup
-1. Node.js: https://nodejs.org/
-2. MongoDB: https://www.mongodb.com/
-3. Git: https://git-scm.com/
+**User** — `name`, `email` (unique, lowercased), `password` (bcrypt hash, never
+returned), `phone`, `role` (`customer | store_manager | admin`, default
+`customer`), `avatar`, `isVerified`, `preferences`, `createdAt`.
+
+**Store** — `name`, `description`, `category`, `location {floor, unit,
+coordinates}`, `contact {phone, email, website}`, `manager` (ref User), `logo`,
+`images`, `isActive`, `operatingHours` per weekday, `rating {average, count}`,
+`features`.
+
+**Service** — `name`, `description`, `category`, `store` (ref Store), `price`
+(INR), `duration` (minutes), `capacity`, `images`, `isActive`, `availability` per
+weekday, `features`, `rating {average, count}`.
+
+**Booking** — `user`, `service`, `store`, `date` (start of the booking day),
+`time` (`HH:mm`), `endTime`, `duration`, `numberOfPeople`, `totalPrice`, `status`
+(`pending | confirmed | completed | cancelled | no_show`), `paymentStatus`,
+`paymentMethod`, `specialRequests`, `notes`, `cancellationReason`, `cancelledBy`.
+
+### Indexes and why they exist
+
+| Collection | Index                       | Serves                             |
+| ---------- | --------------------------- | ---------------------------------- |
+| User       | `{ email }` unique          | Login lookup, duplicate prevention |
+| Booking    | `{ service, date, status }` | Slot-conflict check during booking |
+| Booking    | `{ store, date: -1 }`       | Store dashboard and admin filters  |
+| Booking    | `{ user, date: -1 }`        | "My bookings"                      |
+| Store      | `{ isActive, category }`    | Public catalogue + category filter |
+| Store      | `{ location.floor }`        | Floor filter and floor list        |
+| Service    | `{ isActive, category }`    | Public catalogue + category filter |
+| Service    | `{ store, isActive }`       | Store page and booking validation  |
+
+Each one mirrors a query shape in the routes; none are speculative.
 
 ---
 
-## 🚀 Installation
+## Domain rules
 
-### 1. Clone the Repository
+**Booking a slot**
+
+- Booking dates are normalised to local midnight, and each day-scoped query is
+  bounded to that calendar day (dashboard and admin filters use
+  `[start, next midnight)`), so a 23:59 booking cannot leak into the following day.
+- Conflict detection compares **intervals in minutes**, so a 60-minute service
+  booked at 10:00 blocks 10:30 even though the strings differ.
+- Capacity is summed across overlapping bookings; `capacity = 1` behaves as a
+  single-slot service.
+- Only `pending` and `confirmed` bookings block a slot. Cancelled and completed
+  ones do not.
+- Revenue counts only `confirmed` and `completed`. Cancelled bookings are excluded
+  from revenue and from "top services", but still appear in the status breakdown.
+
+**Roles are not enough on their own**
+
+| Action                         | Customer | Store manager | Admin |
+| ------------------------------ | -------- | ------------- | ----- |
+| Create booking                 | own      | own           | own   |
+| Read booking                   | own      | own store     | any   |
+| Cancel booking                 | own      | own store     | any   |
+| Change booking status          | —        | own store     | any   |
+| Create / delete store          | —        | —             | yes   |
+| Edit store                     | —        | own store     | any   |
+| Create / edit / delete service | —        | own store     | any   |
+| List users, change roles       | —        | —             | yes   |
+
+"Own store" means `Store.manager === user._id`, checked by `canManageStore()`. A
+`store_manager` role with no store attached can do nothing store-scoped — which is
+the correct default.
+
+**Guards against lockout**
+
+- An admin cannot change their own role.
+- The last remaining admin cannot be demoted or deleted.
+- Deleting a manager first unsets `manager` on the stores they managed.
+- Services with bookings cannot be deleted (deactivate instead), so no booking is
+  left pointing at a missing service.
+
+---
+
+## API
+
+All responses are JSON. Success returns the resource or `{ "success": true, ... }`.
+Errors return `{ "success": false, "message": "..." }`, or
+`{ "success": false, "errors": [...] }` for validation failures.
+
+| Method | Path                           | Access                      | Notes                                          |
+| ------ | ------------------------------ | --------------------------- | ---------------------------------------------- |
+| GET    | `/api/health`                  | public                      | Liveness, excluded from rate limiting          |
+| POST   | `/api/auth/register`           | public                      | Always creates a `customer`; 5 failed / 15 min |
+| POST   | `/api/auth/login`              | public                      | Returns token + user; 5 failed / 15 min        |
+| GET    | `/api/auth/user`               | user                        | Current profile incl. role                     |
+| PUT    | `/api/auth/profile`            | user                        | Name, phone, preferences                       |
+| GET    | `/api/users`                   | admin                       | `?role=&search=`                               |
+| GET    | `/api/users/:id`               | admin                       |                                                |
+| PUT    | `/api/users/:id`               | admin                       | Role changes; self and last-admin guarded      |
+| DELETE | `/api/users/:id`               | admin                       | Unassigns their stores                         |
+| GET    | `/api/stores`                  | public                      | `?category=&floor=&search=`                    |
+| GET    | `/api/stores/categories`       | public                      | Distinct categories                            |
+| GET    | `/api/stores/floors`           | public                      | Distinct floors, sorted                        |
+| GET    | `/api/stores/:id`              | public                      | Store + its active services                    |
+| POST   | `/api/stores`                  | admin                       |                                                |
+| PUT    | `/api/stores/:id`              | owner / admin               |                                                |
+| DELETE | `/api/stores/:id`              | admin                       | Blocked while active services exist            |
+| GET    | `/api/services`                | public                      | `?category=&store=&search=`                    |
+| GET    | `/api/services/categories`     | public                      |                                                |
+| GET    | `/api/services/:id`            | public                      | Includes store contact + hours                 |
+| POST   | `/api/services`                | owner / admin               | Store must be the caller's                     |
+| PUT    | `/api/services/:id`            | owner / admin               |                                                |
+| DELETE | `/api/services/:id`            | owner / admin               | Blocked while bookings exist                   |
+| POST   | `/api/bookings`                | user                        | Overlap, capacity, hours validated             |
+| GET    | `/api/bookings`                | user                        | Caller's own bookings                          |
+| GET    | `/api/bookings/store/:storeId` | owner / admin               | Store's bookings                               |
+| GET    | `/api/bookings/:id`            | owner / manager / admin     |                                                |
+| PUT    | `/api/bookings/:id/cancel`     | owner / manager / admin     | Reason ≤ 500 chars                             |
+| PUT    | `/api/bookings/:id/status`     | manager (own store) / admin | Status enum enforced                           |
+| GET    | `/api/admin/dashboard`         | admin                       | Totals, revenue windows, charts                |
+| GET    | `/api/admin/bookings`          | admin                       | `?status=&date=&store=&service=&page=&limit=`  |
+| GET    | `/api/admin/reports`           | admin                       | `?startDate=&endDate=`                         |
+
+---
+
+## Getting started
+
+**Prerequisites:** Node 18+, npm, and either a local MongoDB or an Atlas cluster.
+
 ```bash
 git clone https://github.com/srv-23/mallbook.git
 cd mallbook
+npm run install:all          # root + backend + frontend
+copy .env.example .env       # Windows;  cp .env.example .env  elsewhere
 ```
 
-### 2. Install Dependencies
+Edit `.env` — the backend reads it from the repository root. The server refuses to
+start without `JWT_SECRET` rather than falling back to a hard-coded secret.
+
+| Variable                                       | Required | Default                              | Purpose                                             |
+| ---------------------------------------------- | -------- | ------------------------------------ | --------------------------------------------------- |
+| `MONGODB_URI`                                  | yes      | —                                    | Local or Atlas connection string                    |
+| `JWT_SECRET`                                   | yes      | —                                    | Token signing key; startup fails without it         |
+| `PORT`                                         | no       | `5000`                               | API port                                            |
+| `NODE_ENV`                                     | no       | `development`                        | Enables `trust proxy` and static serving            |
+| `CLIENT_URL`                                   | no       | `http://localhost:3000`              | Allowed origins, comma-separated                    |
+| `DNS_SERVERS`                                  | no       | system                               | Resolver override for SRV URIs, see Troubleshooting |
+| `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`     | no       | `admin@mall.com` / `Admin@12345`     | Seeded admin                                        |
+| `SEED_MANAGER_EMAIL` / `SEED_MANAGER_PASSWORD` | no       | `manager@mall.com` / `Manager@12345` | Seeded manager                                      |
+| `SEED_CUSTOMER_PASSWORD`                       | no       | `Customer@12345`                     | Password for the six demo customers                 |
+
+The front end needs no environment variables: it calls relative `/api` paths and
+`frontend/package.json` proxies them to `http://localhost:5000`.
+
+Then seed and run:
+
 ```bash
-# Install all dependencies for both frontend and backend
-npm run install:all
-
-# Or manually:
-cd backend && npm install
-cd ../frontend && npm install
-cd ..
+npm run seed     # destructive — see below
+npm run dev      # API on :5000, UI on :3000
 ```
 
-### 3. Environment Configuration
-Create a `.env` file in the root directory:
+**Demo accounts** created by the seed:
 
-```env
-# Backend Configuration
-MONGODB_URI=mongodb://localhost:27017/mallbook
-# or use MongoDB Atlas:
-# MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/mallbook
-
-JWT_SECRET=your_jwt_secret_key_here_make_it_strong
-PORT=5000
-NODE_ENV=development
-CLIENT_URL=http://localhost:3000
-
-# Frontend Configuration
-REACT_APP_API_URL=http://localhost:5000
-REACT_APP_API_BASE=http://localhost:5000/api
 ```
+admin@mall.com    / Admin@12345     admin  — analytics, users, roles
+manager@mall.com  / Manager@12345   store_manager — manages all 20 seeded stores
+aarav@example.com / Customer@12345  customer (5 more customers share this password)
+```
+
+**What the seed creates:** 8 users (1 admin, 1 manager, 6 customers), 20 stores
+across three floors (7 / 6 / 7), 20 services (one per store) and 15 bookings spread
+from 9 days ago to 5 days ahead with every status represented, so the dashboard,
+charts and Users screen are populated on first run.
+
+> **Seeding is destructive.** It deletes all bookings, stores and services and
+> recreates the demo accounts. Never run it against a database with real data.
 
 ---
 
-## ▶️ Running the Application
+## Scripts
 
-### Development Mode (Recommended)
-
-**Start Both Frontend and Backend:**
-```bash
-npm run dev
-```
-
-**Or Start Separately:**
-```bash
-# Terminal 1 - Backend (runs on http://localhost:5000)
-npm run server:dev
-
-# Terminal 2 - Frontend (runs on http://localhost:3000)
-npm run client:dev
-```
-
-### Production Mode
-
-**Build Frontend:**
-```bash
-npm run client:build
-```
-
-**Start Backend Server:**
-```bash
-npm run server:start
-```
+| Command                       | From        | Does                                    |
+| ----------------------------- | ----------- | --------------------------------------- |
+| `npm run dev`                 | root        | API (nodemon) + UI (CRA) together       |
+| `npm run server:dev`          | root        | API only (nodemon)                      |
+| `npm run server:start`        | root        | API only (plain `node`)                 |
+| `npm run client:dev`          | root        | UI only                                 |
+| `npm run seed`                | root        | Reseed demo data                        |
+| `npm run install:all`         | root        | Install root, backend and frontend deps |
+| `npm run client:build`        | root        | Production build of the UI              |
+| `npm start` / `npm run dev`   | `backend/`  | Run API / with nodemon                  |
+| `npm start` / `npm run build` | `frontend/` | CRA dev server / production build       |
 
 ---
 
-##  User Roles & Permissions
+## Testing & known limitations
 
-### 1. Customer
-- ✅ Register and login
-- ✅ Browse stores and services
-- ✅ Create bookings
-- ✅ View own bookings
-- ✅ Cancel bookings
-- ✅ Update profile
-- ❌ Cannot access admin features
+There is no automated test suite. Verification so far is manual: the production
+build compiles without warnings, every backend file passes `node --check`, and the
+flows were exercised against a seeded database — login, role changes, cancellation
+and the guard rejection paths.
 
-### 2. Admin
-- ✅ All customer features
-- ✅ View analytics dashboard
-- ✅ Manage all stores
-- ✅ Manage all services
-- ✅ View all bookings
-- ✅ Manage all users
-- ✅ Update booking status
+Known limitations, all of which a reviewer should assume are real:
 
-### 3. Store Manager
-- ✅ All customer features
-- ✅ Manage assigned store
-- ✅ Add/edit services
-- ✅ View store-specific bookings
-- ✅ Manage store information
+- **Slot race condition** — the conflict check reads, then inserts. Two concurrent
+  requests can both pass. The fix is a unique partial index on active slots or a
+  transaction.
+- **Timezone** — booking dates are stored at local midnight, so clients in negative
+  UTC offsets can see a one-day shift.
+- **No refresh tokens** — a 7-day access token in `localStorage`; no rotation or
+  revocation list. Logout deletes the token locally only.
+- **In-memory rate limiting** — limits are per process, so they do not hold across
+  multiple instances.
+- **No audit trail** — role changes and deletions are not logged.
+- **No soft deletes** — deleting a user leaves their bookings in place; the admin
+  view renders "Deleted user".
+- **No pagination on public lists** — store and service catalogues return
+  everything (fine at seed scale, not at real scale).
+- **Seeding is destructive** and has no dry-run mode.
 
 ---
 
-## ⚙️ Configuration
+## Roadmap
 
-### Environment Variables
-
-**Backend (.env)**
-```env
-MONGODB_URI=<your_mongodb_connection_string>
-JWT_SECRET=<strong_secret_key>
-PORT=5000
-NODE_ENV=development
-CLIENT_URL=http://localhost:3000
-```
-
-**Frontend (Environment Variables)**
-```env
-REACT_APP_API_URL=http://localhost:5000
-REACT_APP_API_BASE=http://localhost:5000/api
-```
-
-### Vercel Deployment Configuration
-
-The `vercel.json` file handles deployment settings:
-- Frontend deploys on Vercel
-- Backend can be deployed on separate platform (Heroku, Railway, Render)
+- Automated tests: Jest + Supertest for the API guards and booking rules
+- Slot uniqueness enforced by a partial index plus a transaction
+- Refresh tokens with rotation, and httpOnly cookies instead of `localStorage`
+- Audit log for role and permission changes
+- Pagination and cursor support for public catalogues
+- Store images and service gallery uploads (currently URL fields)
 
 ---
 
-## 📊 Database Seeding
+## License
 
-### Seed Data Included
-
-**Stores (20 total):**
-- 7 stores on Ground Floor (Floor 0)
-- 6 stores on First Floor (Floor 1)
-- 7 stores on Second Floor (Floor 2)
-
-**Services:**
-- 4-5 services per store
-- Realistic Indian mall pricing (₹0 - ₹99,999)
-- Diverse categories (Fashion, Food, Entertainment, Healthcare)
-
-**Sample Admin Account:**
-```
-Email: admin@mall.com
-Password: admin123
-```
-
-### Run Seeding
-
-```bash
-npm run seed
-```
-
----
-
-## 🌐 Deployment
-
-### Frontend Deployment (Vercel)
-
-The project includes `vercel.json` configuration:
-
-```bash
-# Automatic deployment
-git push origin main
-```
-
-Vercel will automatically:
-- Build the React application
-- Optimize static assets
-- Deploy to Vercel CDN
-
-**Frontend URL:** `https://your-project-name.vercel.app`
-
-### Backend Deployment Options
-
-#### Option 1: Heroku
-```bash
-# Install Heroku CLI
-npm install -g heroku
-
-# Login to Heroku
-heroku login
-
-# Create app
-heroku create your-app-name
-
-# Deploy
-git push heroku main
-```
-
-#### Option 2: Railway
-- Connect GitHub repository
-- Select backend folder
-- Provide environment variables
-- Auto-deploy on push
-
-#### Option 3: Render
-- Connect GitHub repository
-- Create new Web Service
-- Deploy backend code
-
-### Environment Variables on Production
-
-Set these on your deployment platform:
-```
-MONGODB_URI=<production_mongodb_atlas_url>
-JWT_SECRET=<strong_production_secret>
-NODE_ENV=production
-CLIENT_URL=<your_vercel_url>
-```
-
----
-
-## 🤝 Contributing
-
-We welcome contributions! Here's how:
-
-### 1. Fork Repository
-```bash
-git clone https://github.com/yourusername/mallbook.git
-```
-
-### 2. Create Feature Branch
-```bash
-git checkout -b feature/YourFeatureName
-```
-
-### 3. Commit Changes
-```bash
-git add .
-git commit -m "Add: Brief description of changes"
-```
-
-### 4. Push to Branch
-```bash
-git push origin feature/YourFeatureName
-```
-
-### 5. Open Pull Request
-- Describe your changes
-- Reference any related issues
-- Ensure all tests pass
-
-### Code Guidelines
-- Follow existing code style
-- Add comments for complex logic
-- Test your changes before submitting
-- Update documentation as needed
-
----
-
-## 📄 License
-
-MIT License - Free to use and modify
-
-```
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions...
-```
-
----
-
-## 👤 Author
-
-**Saurabh Chaurasia**
-
-- GitHub: [@srv-23](https://github.com/srv-23)
-- Project: [MallBook](https://github.com/srv-23/mallbook)
-
----
-
-## 📞 Support & Issues
-
-Found a bug or have a suggestion? Let us know!
-
-- 🐛 **Report Issues:** [GitHub Issues](https://github.com/srv-23/mallbook/issues)
-- 💬 **Discussions:** [GitHub Discussions](https://github.com/srv-23/mallbook/discussions)
-
----
-
-## 🎯 Project Highlights
-
-✅ **Modern Architecture** - Clean separation of concerns with backend/frontend structure  
-✅ **Responsive Design** - Works perfectly on all devices  
-✅ **Secure Authentication** - JWT-based with bcryptjs password hashing  
-✅ **Real-time Analytics** - Admin dashboard with live statistics  
-✅ **Scalable Database** - MongoDB for flexible data modeling  
-✅ **Secure & Stable** - Error handling, validation, and rate limiting  
-✅ **Easy Deployment** - Vercel for frontend, multiple options for backend  
-✅ **Well Documented** - Comprehensive API documentation and setup guides  
-
----
-
-## 🚀 Future Enhancements
-
-- [ ] Email notifications for bookings
-- [ ] SMS confirmations
-- [ ] Payment gateway integration
-- [ ] Real-time chat support
-- [ ] Mobile app (React Native)
-- [ ] Advanced analytics and reporting
-- [ ] Multi-language support
-- [ ] Rating and review system
-
----
-
-**Built with ❤️ by Saurabh Chaurasia**  
-**Version:** 1.0.0 | **Last Updated:** January 2026
+MIT. Author: Saurabh Chaurasia.

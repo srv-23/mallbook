@@ -1,36 +1,32 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import axios from 'axios';
+import { useMutation, useQuery, useQueryClient } from 'react-query';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { FaCalendar, FaClock, FaStore, FaTimes } from 'react-icons/fa';
 import { motion } from 'framer-motion';
 import { priceDisplay } from '../../utils/currency';
 
 const MyBookings = () => {
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    const fetchBookings = async () => {
-      setLoading(true);
-      try {
-        const res = await axios.get('/api/bookings');
-        setBookings(res.data);
-      } catch {
-        setBookings([]);
-      }
-      setLoading(false);
-    };
-    fetchBookings();
-  }, []);
+  const { data: bookings = [], isLoading, isError } = useQuery('bookings', async () => {
+    const res = await axios.get('/api/bookings');
+    return res.data;
+  });
 
-  const handleCancel = async (bookingId) => {
-    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
-    try {
-      await axios.put(`/api/bookings/${bookingId}/cancel`);
-      setBookings(bookings.map(b => b._id === bookingId ? { ...b, status: 'cancelled' } : b));
-    } catch (err) {
-      alert('Failed to cancel booking');
+  const cancelBooking = useMutation(
+    (bookingId) => axios.put(`/api/bookings/${bookingId}/cancel`),
+    {
+      // A cancellation changes the booking list, so the cached query is
+      // invalidated and refetched instead of patching state by hand.
+      onSuccess: () => queryClient.invalidateQueries('bookings'),
+      onError: () => alert('Failed to cancel booking')
     }
+  );
+
+  const handleCancel = (bookingId) => {
+    if (!window.confirm('Are you sure you want to cancel this booking?')) return;
+    cancelBooking.mutate(bookingId);
   };
 
   const getStatusBadge = (status) => {
@@ -43,7 +39,16 @@ const MyBookings = () => {
     return badges[status] || 'badge-secondary';
   };
 
-  if (loading) return <LoadingSpinner />;
+  if (isLoading) return <LoadingSpinner />;
+
+  if (isError) {
+    return (
+      <div className="container py-16 text-center text-gray-500">
+        <p className="text-xl font-semibold">Could not load your bookings</p>
+        <p className="text-sm mt-2">Check that the API is running and try again.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="container py-8 min-h-screen">
@@ -107,6 +112,7 @@ const MyBookings = () => {
                   {booking.status === 'pending' && (
                     <button
                       onClick={() => handleCancel(booking._id)}
+                      disabled={cancelBooking.isLoading}
                       className="btn btn-danger text-sm w-full flex items-center justify-center gap-2"
                     >
                       <FaTimes /> Cancel

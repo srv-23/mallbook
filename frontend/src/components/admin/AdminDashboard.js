@@ -1,32 +1,36 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import axios from 'axios';
+import { useQuery } from 'react-query';
 import LoadingSpinner from '../common/LoadingSpinner';
 import { FaUsers, FaStore, FaTags, FaCalendarCheck, FaChartLine, FaArrowUp } from 'react-icons/fa';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, LineChart, Line, CartesianGrid } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend, CartesianGrid } from 'recharts';
 import { motion } from 'framer-motion';
+import AdminTabs from './AdminTabs';
 import { priceDisplay } from '../../utils/currency';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e42', '#ef4444', '#6366f1', '#fbbf24', '#14b8a6'];
 
 const AdminDashboard = () => {
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { data: stats, isLoading, isError } = useQuery('adminDashboard', async () => {
+    const res = await axios.get('/api/admin/dashboard');
+    return res.data;
+  });
 
-  useEffect(() => {
-    const fetchStats = async () => {
-      setLoading(true);
-      try {
-        const res = await axios.get('/api/admin/dashboard');
-        setStats(res.data);
-      } catch {
-        setStats(null);
-      }
-      setLoading(false);
-    };
-    fetchStats();
-  }, []);
+  if (isLoading) return <LoadingSpinner />;
 
-  if (loading || !stats) return <LoadingSpinner />;
+  if (isError || !stats) {
+    return (
+      <div className="container py-10">
+        <AdminTabs />
+        <div className="text-center text-gray-500 py-6">
+          <p className="text-xl font-semibold">Could not load the dashboard</p>
+          <p className="text-sm mt-2">
+            Admin access is required. Check that the API is running and try again.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const statCards = [
     { icon: FaUsers, label: 'Users', value: stats.totals.users, color: 'from-blue-500 to-blue-600', bgColor: 'bg-blue-100' },
@@ -50,6 +54,8 @@ const AdminDashboard = () => {
           </h1>
           <p className="text-gray-600 text-lg">Monitor platform performance and analytics</p>
         </motion.div>
+
+        <AdminTabs />
 
         {/* Stats Cards */}
         <motion.div
@@ -189,18 +195,22 @@ const AdminDashboard = () => {
                     transition={{ delay: idx * 0.05 }}
                     className="border-b hover:bg-gray-50 transition-colors"
                   >
-                    <td className="px-4 py-3 font-semibold text-gray-800">{b.user?.name}</td>
-                    <td className="px-4 py-3 text-gray-700">{b.service?.name}</td>
-                    <td className="px-4 py-3 text-gray-700">{b.store?.name}</td>
+                    <td className="px-4 py-3 font-semibold text-gray-800">{b.user?.name || 'Deleted user'}</td>
+                    <td className="px-4 py-3 text-gray-700">{b.service?.name || '—'}</td>
+                    <td className="px-4 py-3 text-gray-700">{b.store?.name || '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{new Date(b.date).toLocaleDateString()}</td>
                     <td className="px-4 py-3 text-gray-600">{b.time}</td>
                     <td className="px-4 py-3">
                       <span
                         className={`px-3 py-1 rounded-full text-xs font-bold ${
-                          b.status === 'confirmed'
+                          b.status === 'completed'
+                            ? 'bg-blue-100 text-blue-700'
+                            : b.status === 'confirmed'
                             ? 'bg-green-100 text-green-700'
                             : b.status === 'pending'
                             ? 'bg-yellow-100 text-yellow-700'
+                            : b.status === 'no_show'
+                            ? 'bg-orange-100 text-orange-700'
                             : 'bg-red-100 text-red-700'
                         }`}
                       >

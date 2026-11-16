@@ -2,7 +2,9 @@ const express = require('express');
 const { check, validationResult } = require('express-validator');
 const Store = require('../models/Store');
 const Service = require('../models/Service');
-const { auth, storeManagerAuth } = require('../middleware/auth');
+const { adminAuth, storeManagerAuth } = require('../middleware/auth');
+const { forbidden } = require('../utils/storeAccess');
+const { escapeRegex } = require('../utils/regex');
 
 const router = express.Router();
 
@@ -19,13 +21,14 @@ router.get('/', async (req, res) => {
     }
 
     if (floor) {
-      query['location.floor'] = parseInt(floor);
+      query['location.floor'] = parseInt(floor, 10);
     }
 
     if (search) {
+      const term = escapeRegex(search.trim());
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } }
+        { name: { $regex: term, $options: 'i' } },
+        { description: { $regex: term, $options: 'i' } }
       ];
     }
 
@@ -36,7 +39,7 @@ router.get('/', async (req, res) => {
     res.json(stores);
   } catch (error) {
     console.error(error.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
@@ -49,7 +52,7 @@ router.get('/categories', async (req, res) => {
     res.json(categories);
   } catch (error) {
     console.error(error.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
@@ -62,7 +65,7 @@ router.get('/floors', async (req, res) => {
     res.json(floors.sort((a, b) => a - b));
   } catch (error) {
     console.error(error.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
@@ -75,40 +78,36 @@ router.get('/:id', async (req, res) => {
       .populate('manager', 'name email phone');
 
     if (!store) {
-      return res.status(404).json({ message: 'Store not found' });
+      return res.status(404).json({ success: false, message: 'Store not found' });
     }
 
-    // Get active services for this store
-    const services = await Service.find({ 
-      store: req.params.id, 
-      isActive: true 
+    const services = await Service.find({
+      store: req.params.id,
+      isActive: true
     }).sort({ name: 1 });
 
-    res.json({
-      store,
-      services
-    });
+    res.json({ store, services });
   } catch (error) {
     console.error(error.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
 // @route   POST /api/stores
 // @desc    Create a new store (admins only)
-// @access  Private
+// @access  Private/Admin
 router.post('/', [
-  auth,
-  check('name', 'Store name is required').not().isEmpty(),
-  check('description', 'Description is required').not().isEmpty(),
+  adminAuth,
+  check('name', 'Store name is required').trim().not().isEmpty(),
+  check('description', 'Description is required').trim().not().isEmpty(),
   check('category', 'Category is required').isIn(['fashion', 'electronics', 'food', 'beauty', 'entertainment', 'services', 'other']),
-  check('location.floor', 'Floor number is required').isInt({ min: 1 }),
-  check('location.unit', 'Unit number is required').not().isEmpty(),
+  check('location.floor', 'Floor number is required').isInt({ min: 0 }),
+  check('location.unit', 'Unit number is required').trim().not().isEmpty(),
   check('contact.phone', 'Phone number is required').not().isEmpty()
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    return res.status(400).json({ errors: errors.array() });
+    return res.status(400).json({ success: false, errors: errors.array() });
   }
 
   const {
@@ -151,22 +150,27 @@ router.post('/', [
     const populatedStore = await Store.findById(store._id)
       .populate('manager', 'name email');
 
-    res.json(populatedStore);
+    res.status(201).json(populatedStore);
   } catch (error) {
     console.error(error.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
 // @route   PUT /api/stores/:id
-// @desc    Update a store (store managers and admins only)
-// @access  Private
+// @desc    Update a store (its manager or an admin)
+// @access  Private/Store manager or admin
 router.put('/:id', storeManagerAuth, async (req, res) => {
   try {
     const store = await Store.findById(req.params.id);
 
     if (!store) {
-      return res.status(404).json({ message: 'Store not found' });
+      return res.status(404).json({ success: false, message: 'Store not found' });
+    }
+
+    const ownsStore = store.manager && String(store.manager) === String(req.user.id);
+    if (req.user.role !== 'admin' && !ownsStore) {
+      return forbidden(res);
     }
 
     const {
@@ -188,7 +192,7 @@ router.put('/:id', storeManagerAuth, async (req, res) => {
     if (category) store.category = category;
     if (location) store.location = location;
     if (contact) store.contact = contact;
-    if (manager) store.manager = manager;
+    if (manager !== undefined) store.manager = manager;
     if (logo !== undefined) store.logo = logo;
     if (images) store.images = images;
     if (operatingHours) store.operatingHours = operatingHours;
@@ -203,35 +207,35 @@ router.put('/:id', storeManagerAuth, async (req, res) => {
     res.json(populatedStore);
   } catch (error) {
     console.error(error.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
 // @route   DELETE /api/stores/:id
 // @desc    Delete a store (admins only)
-// @access  Private
-router.delete('/:id', auth, async (req, res) => {
+// @access  Private/Admin
+router.delete('/:id', adminAuth, async (req, res) => {
   try {
     const store = await Store.findById(req.params.id);
 
     if (!store) {
-      return res.status(404).json({ message: 'Store not found' });
+      return res.status(404).json({ success: false, message: 'Store not found' });
     }
 
-    // Check if store has active services
     const activeServices = await Service.find({ store: req.params.id, isActive: true });
     if (activeServices.length > 0) {
-      return res.status(400).json({ 
-        message: 'Cannot delete store with active services. Please deactivate services first.' 
+      return res.status(400).json({
+        success: false,
+        message: 'Cannot delete store with active services. Please deactivate services first.'
       });
     }
 
-    await store.remove();
-    res.json({ message: 'Store removed' });
+    await store.deleteOne();
+    res.json({ success: true, message: 'Store removed' });
   } catch (error) {
     console.error(error.message);
-    res.status(500).send('Server error');
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 
-module.exports = router; 
+module.exports = router;

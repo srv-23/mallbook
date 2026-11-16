@@ -3,17 +3,41 @@ const jwt = require('jsonwebtoken');
 const { check, validationResult } = require('express-validator');
 const User = require('../models/User');
 const { auth } = require('../middleware/auth');
+const { authLimiter } = require('../middleware/rateLimit');
 
 const router = express.Router();
+
+const signToken = (user) =>
+  new Promise((resolve, reject) => {
+    // The role is intentionally not embedded: authorization reads the current
+    // role from MongoDB so a demotion takes effect on the next request.
+    jwt.sign(
+      { userId: user.id },
+      process.env.JWT_SECRET,
+      { expiresIn: '7d' },
+      (err, token) => (err ? reject(err) : resolve(token))
+    );
+  });
+
+const publicUser = (user) => ({
+  id: user.id,
+  name: user.name,
+  email: user.email,
+  role: user.role,
+  phone: user.phone
+});
 
 // @route   POST /api/auth/register
 // @desc    Register user
 // @access  Public
 router.post('/register', [
-  check('name', 'Name is required').not().isEmpty(),
-  check('email', 'Please include a valid email').isEmail(),
+  authLimiter,
+  check('name', 'Name is required').trim().not().isEmpty(),
+  check('name').isLength({ max: 80 }).withMessage('Name is too long'),
+  check('email', 'Please include a valid email').isEmail().trim().toLowerCase(),
   check('password', 'Please enter a password with 6 or more characters').isLength({ min: 6 }),
-  check('phone', 'Phone number is required').not().isEmpty()
+  check('phone', 'Phone number is required').not().isEmpty(),
+  check('phone').matches(/^[0-9+\-\s]{7,20}$/).withMessage('Please include a valid phone number')
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -38,30 +62,13 @@ router.post('/register', [
 
     await user.save();
 
-    const payload = {
-      userId: user.id,
-      role: user.role
-    };
+    const token = await signToken(user);
 
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({
-          success: true,
-          token,
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            phone: user.phone
-          }
-        });
-      }
-    );
+    res.status(201).json({
+      success: true,
+      token,
+      user: publicUser(user)
+    });
   } catch (error) {
     console.error('Registration error:', error.message);
     res.status(500).json({ 
@@ -75,7 +82,8 @@ router.post('/register', [
 // @desc    Authenticate user & get token
 // @access  Public
 router.post('/login', [
-  check('email', 'Please include a valid email').isEmail(),
+  authLimiter,
+  check('email', 'Please include a valid email').isEmail().trim().toLowerCase(),
   check('password', 'Password is required').exists()
 ], async (req, res) => {
   const errors = validationResult(req);
@@ -95,33 +103,16 @@ router.post('/login', [
     const isMatch = await user.comparePassword(password);
 
     if (!isMatch) {
-      return res.status(400).json({ message: 'Invalid credentials' });
+      return res.status(400).json({ success: false, message: 'Invalid credentials' });
     }
 
-    const payload = {
-      userId: user.id,
-      role: user.role
-    };
+    const token = await signToken(user);
 
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET || 'your-secret-key',
-      { expiresIn: '7d' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({
-          success: true,
-          token,
-          user: {
-            id: user.id,
-            name: user.name,
-            email: user.email,
-            role: user.role,
-            phone: user.phone
-          }
-        });
-      }
-    );
+    res.json({
+      success: true,
+      token,
+      user: publicUser(user)
+    });
   } catch (error) {
     console.error('Login error:', error.message);
     res.status(500).json({ 
